@@ -1,96 +1,133 @@
 """
-Unified OHLCV loader. Auto-routes to correct provider. Caches result.
+Unified OHLCV loader.
+
+Provider priority:
+1. Cache (parquet, TTL=24h)
+2. Angel One SmartAPI (NSE/BSE — primary for Indian markets)
+3. Stooq (global fallback via pandas_datareader)
+4. Last stale cache copy
+
+Yahoo Finance has been removed entirely.
+Indian market symbols (NSE/BSE) should be used for Angel One.
+For US/global symbols, stooq fallback handles them.
 """
 from __future__ import annotations
 import pandas as pd
 from pathlib import Path
 from app.utils.logger import get_logger
+from app.data.cache import DataCache
 
 log = get_logger(__name__)
 
-CACHE_DIR = Path(__file__).parent / "cache"
-CACHE_DIR.mkdir(exist_ok=True)
+_cache = DataCache()
 
-def _cache_key(ticker: str, start: str, end: str) -> Path:
-    return CACHE_DIR / f"{ticker}_{start}_{end}.parquet"
+
+def _is_indian_symbol(ticker: str) -> bool:
+    """
+    Heuristic: symbols without dots and all-caps latin are likely NSE tickers.
+    Yahoo-style suffixes like .NS or .BSE tell us explicitly.
+    """
+    upper = ticker.upper()
+    if upper.endswith(".NS") or upper.endswith(".NSE"):
+        return True
+    if upper.endswith(".BSE"):
+        return True
+    # common Indian benchmark indices
+    if upper in ("NIFTY", "NIFTY50", "BANKNIFTY", "SENSEX"):
+        return True
+    return False
+
+
+def _strip_suffix(ticker: str) -> tuple[str, str]:
+    """
+    Parse 'RELIANCE.NS' -> ('RELIANCE', 'NSE')
+    Parse 'RELIANCE.BSE' -> ('RELIANCE', 'BSE')
+    Default exchange: NSE
+    """
+    upper = ticker.upper()
+    if upper.endswith(".BSE"):
+        return ticker[:-4], "BSE"
+    if upper.endswith(".NS") or upper.endswith(".NSE"):
+        return ticker.rsplit(".", 1)[0], "NSE"
+    return ticker, "NSE"
+
+
+def _fetch_angelone(ticker: str, start: str, end: str) -> pd.DataFrame:
+    """Try Angel One SmartAPI."""
+    try:
+        from app.data.providers.angelone import fetch_angelone
+        symbol, exchange = _strip_suffix(ticker)
+        log.info(f"[Loader] Trying Angel One: {symbol} ({exchange}) {start}→{end}")
+        df = fetch_angelone(symbol, start, end, exchange=exchange)
+        if not df.empty:
+            return df
+    except EnvironmentError as e:
+        log.warning(f"[Loader] Angel One not configured: {e}")
+    except Exception as e:
+        log.warning(f"[Loader] Angel One failed for {ticker}: {e}")
+    return pd.DataFrame()
+
 
 def _fetch_stooq(ticker: str, start: str, end: str) -> pd.DataFrame:
+    """Fallback: stooq via pandas_datareader (works for US/global tickers)."""
     try:
         from pandas_datareader import data as pdr
-        df = pdr.DataReader(ticker, 'stooq', start=start, end=end)
+        log.info(f"[Loader] Trying stooq: {ticker} {start}→{end}")
+        df = pdr.DataReader(ticker, "stooq", start=start, end=end)
         if df.empty:
             raise ValueError("stooq returned empty data")
         df = df.sort_index()
         df.index = pd.to_datetime(df.index)
-        df = df.rename(columns={"Open": "Open", "High": "High", "Low": "Low", "Close": "Close", "Volume": "Volume"})
         df = df[["Open", "High", "Low", "Close", "Volume"]]
         return df
     except Exception as e:
-        log.warning(f"stooq failed for {ticker}: {e}")
+        log.warning(f"[Loader] stooq failed for {ticker}: {e}")
         return pd.DataFrame()
+
 
 def load_ohlcv(ticker: str, start: str, end: str) -> pd.DataFrame:
     """
-    Load OHLCV data. Returns DataFrame with columns: Open, High, Low, Close, Volume.
-    Flow: cache → yfinance (persist) → stooq fallback → cached copy → error.
+    Load OHLCV data for any ticker.
+
+    Flow
+    ----
+    1. Check disk cache (parquet, 24-hour TTL)
+    2. Try Angel One SmartAPI  (for Indian NSE/BSE symbols)
+    3. Try stooq               (global fallback — US, indices, etc.)
+    4. Return stale cache if everything else fails
+    5. Raise ValueError
+
+    Parameters
+    ----------
+    ticker : trading symbol. Use bare symbols for NSE (e.g. "RELIANCE"),
+             optionally suffixed with .NS/.BSE. US symbols work via stooq.
+    start  : 'YYYY-MM-DD'
+    end    : 'YYYY-MM-DD'
     """
-    cache_file = _cache_key(ticker, start, end)
+    # ── 1. Cache hit ──────────────────────────────────────────────────────────
+    cached = _cache.get(ticker, start, end)
+    if cached is not None and not cached.empty:
+        return cached
 
-    if cache_file.exists():
-        log.info(f"Cache hit: {ticker} {start}→{end}")
-        try:
-            df = pd.read_parquet(cache_file)
-            if not df.empty:
-                return df
-        except Exception as e:
-            log.warning(f"Cache read failed: {e}")
-            # try csv fallback
-            try:
-                df = pd.read_csv(cache_file.with_suffix(".csv"), index_col=0, parse_dates=True)
-                if not df.empty:
-                    return df
-            except Exception:
-                pass
-
-    try:
-        import yfinance as yf
-        log.info(f"Fetching {ticker} from yfinance {start}→{end}")
-        df = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
-        if df.empty:
-            raise ValueError(f"yfinance returned empty data for {ticker}")
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-        df = df[["Open", "High", "Low", "Close", "Volume"]].copy()
-        df.index = pd.to_datetime(df.index)
-        df.dropna(inplace=True)
-        try:
-            df.to_parquet(cache_file)
-        except Exception as e:
-            log.warning(f"Cache write failed: {e}")
-            try:
-                df.to_csv(cache_file.with_suffix(".csv"))
-            except Exception:
-                pass
+    # ── 2. Angel One ──────────────────────────────────────────────────────────
+    df = _fetch_angelone(ticker, start, end)
+    if not df.empty:
+        _cache.put(ticker, start, end, df)
         return df
-    except Exception as e:
-        log.warning(f"yfinance failed for {ticker}: {e}")
 
-    stq = _fetch_stooq(ticker, start, end)
-    if not stq.empty:
-        try:
-            stq.to_parquet(cache_file)
-        except Exception as e:
-            log.warning(f"Cache write failed (stooq): {e}")
-            try:
-                stq.to_csv(cache_file.with_suffix(".csv"))
-            except Exception:
-                pass
-        return stq
+    # ── 3. stooq fallback ────────────────────────────────────────────────────
+    df = _fetch_stooq(ticker, start, end)
+    if not df.empty:
+        _cache.put(ticker, start, end, df)
+        return df
 
-    if cache_file.exists():
-        log.info("Using last cached copy after provider failure")
-        df = pd.read_parquet(cache_file)
-        if not df.empty:
-            return df
+    # ── 4. Stale cache ────────────────────────────────────────────────────────
+    stale = _cache.get(ticker, start, end)   # ignores TTL implicitly via direct read
+    if stale is not None and not stale.empty:
+        log.warning(f"[Loader] Using stale cache for {ticker}")
+        return stale
 
-    raise ValueError(f"Failed to load OHLCV for {ticker} {start}→{end}")
+    raise ValueError(
+        f"Failed to load OHLCV for '{ticker}' ({start}→{end}). "
+        f"Check Angel One credentials or try a different symbol."
+    )

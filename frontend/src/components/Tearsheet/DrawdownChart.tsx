@@ -42,7 +42,7 @@ export default function DrawdownChart() {
           <CartesianGrid stroke="var(--border)" vertical={false} />
           <XAxis dataKey="date" tick={{ fill: 'var(--text2)', fontSize: 10 }} tickLine={false} axisLine={{ stroke: 'var(--border)' }} minTickGap={60} tickFormatter={(d) => new Date(d).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })} />
           <YAxis tick={{ fill: 'var(--text2)', fontSize: 10 }} tickLine={false} axisLine={false} domain={[dataMin => Math.min(dataMin, -60), 0]} tickFormatter={(v) => `${v.toFixed(0)}%`} />
-          <Tooltip contentStyle={{ background: 'var(--panel)', border: '1px solid var(--border2)', borderRadius: 8 }} formatter={(v: number, name) => [`${v.toFixed(1)}%`, name === 'trader' ? 'Trader' : 'Expert']} />
+          <Tooltip contentStyle={{ background: 'var(--panel)', border: '1px solid var(--border2)', borderRadius: 8 }} formatter={(v, name) => [`${Number(v).toFixed(1)}%`, name === 'trader' ? 'Trader' : 'Expert']} />
           <Area type="monotone" dataKey="trader" name="Trader" stroke={COLORS.trader} fill={COLORS.trader} fillOpacity={0.2} />
           <Area type="monotone" dataKey="expert" name="Expert" stroke={COLORS.expert} fill={COLORS.expert} fillOpacity={0.15} />
         </AreaChart>

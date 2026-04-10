@@ -2,10 +2,19 @@ import axios from 'axios'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 
-/* ── Axios Client with auth header ───────────────────────────────────────── */
+/* ── Axios Client ─────────────────────────────────────────────────────────── */
 const client = axios.create({
   baseURL: `${API_BASE}/api`,
   timeout: 180_000,
+})
+
+// Attach auth token if present in localStorage
+client.interceptors.request.use((config) => {
+  const token = localStorage.getItem('iris_token')
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`
+  }
+  return config
 })
 
 /* ── TypeScript Interfaces matching backend Pydantic schemas ─────── */
@@ -21,6 +30,7 @@ export interface RunRequest {
   max_position_pct: number
   monte_carlo_paths: number
   expert_type?: string
+  groq_api_key?: string
 }
 
 export interface TearsheetMetrics {
@@ -99,9 +109,24 @@ export interface AutomateResult {
   error?: string
 }
 
+export interface CurrentUser {
+  email: string
+  role: string
+}
 
+export interface QuoteData {
+  symbol: string
+  exchange: string
+  token: string
+  ltp: number
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+}
 
-/* ── API Functions ───────────────────────────────────────────────── */
+/* ── API Functions ───────────────────────────────────────────────────── */
 
 /** Full pipeline: parse → trader + expert → verify → compare → narrate */
 export async function runStrategy(req: RunRequest): Promise<Tearsheet> {
@@ -137,6 +162,18 @@ export async function automateStrategy(
     null,
     { params: { use_expert: useExpert } }
   )
+  return data
+}
+
+/** Get the currently authenticated user from the backend */
+export async function getMe(): Promise<CurrentUser> {
+  const { data } = await client.get<CurrentUser>('/auth/me', { baseURL: API_BASE })
+  return data
+}
+
+/** Real-time quote for an NSE/BSE symbol */
+export async function getQuote(symbol: string, exchange = 'NSE'): Promise<QuoteData> {
+  const { data } = await client.get<QuoteData>(`/quote/${symbol}`, { params: { exchange } })
   return data
 }
 

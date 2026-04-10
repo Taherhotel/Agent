@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 
 import { motion } from 'framer-motion'
 
-import { Clock, BarChart3, ChevronRight, FileText, TrendingUp } from 'lucide-react'
+import { Clock, BarChart3, ChevronRight } from 'lucide-react'
 
 import { useIRISStore } from '../store/irisStore'
 

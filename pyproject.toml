@@ -12,14 +12,17 @@ dependencies = [
     "pydantic-settings",
     "pandas",
     "numpy",
-    "yfinance",
-    "alpaca-trade-api",
+    "smartapi-python",
+    "pyotp",
+    "websocket-client",
+    "logzero",
     "arch",
     "hmmlearn",
     "scipy",
     "pykalman",
     "statsmodels",
     "python-dotenv",
+    "python-multipart",
 ]
 
 [project.optional-dependencies]

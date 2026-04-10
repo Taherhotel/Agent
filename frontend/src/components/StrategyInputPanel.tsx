@@ -6,7 +6,7 @@ import { parseStrategy } from '../api/client'
 
 const PLACEHOLDER_STRATEGIES = [
   'Buy when the 50-day MA crosses above the 200-day MA, sell when RSI exceeds 70...',
-  'Buy AAPL when MACD histogram turns positive, sell when it turns negative...',
+  'Buy RELIANCE when MACD histogram turns positive, sell when it turns negative...',
   'Go long when Bollinger Band width contracts below 2%, exit on 3% trailing stop...',
 ]
 
@@ -69,53 +69,45 @@ export default function StrategyInputPanel({ compact = false }: { compact?: bool
             Describe your trading strategy in plain English
           </span>
         </div>
-        {!compact && (
-          <button
-            className="iris-btn iris-btn-secondary font-mono"
-            style={{ padding: '0.5rem 0.75rem', gap: '0.4rem' }}
-            onClick={handleAutofill}
-            disabled={isRunning || parsing || !prompt.trim()}
-            title="Parse prompt to pre-fill fields"
-          >
-            <Sparkles size={14} /> {parsing ? 'Parsing…' : 'Auto-fill'}
-          </button>
-        )}
       </div>
 
       {/* Strategy textarea */}
-      {parseError && (<div className="iris-card" style={{ borderColor: 'rgba(255,77,106,0.3)', background:'rgba(255,77,106,0.05)', padding:'0.5rem', fontSize:'0.78rem', color:'var(--red)', marginBottom:'0.35rem' }}>{parseError}</div>)}
+      {parseError && (
+        <div className="iris-card" style={{ borderColor: 'rgba(255,77,106,0.3)', background:'rgba(255,77,106,0.05)', padding:'0.5rem', fontSize:'0.78rem', color:'var(--red)', marginBottom:'0.35rem' }}>
+          {parseError}
+        </div>
+      )}
       <textarea
         className="iris-input strategy-textarea font-mono"
         placeholder={placeholder}
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
-        rows={4}
+        rows={compact ? 4 : 5}
         disabled={isRunning}
       />
 
-      {!compact && (
-        <button
-          className="iris-btn iris-btn-secondary font-mono"
-          style={{ padding: '0.5rem 0.75rem', gap: '0.4rem', width: '100%' }}
-          onClick={handleAutofill}
-          disabled={isRunning || parsing || !prompt.trim()}
-          title="Parse prompt to pre-fill fields"
-        >
-          <Sparkles size={14} /> {parsing ? 'Parsing…' : 'Auto-fill'}
-        </button>
-      )}
+      {/* Auto-fill button — single instance below textarea */}
+      <button
+        className="iris-btn iris-btn-secondary font-mono"
+        style={{ padding: '0.5rem 0.75rem', gap: '0.4rem', width: '100%' }}
+        onClick={handleAutofill}
+        disabled={isRunning || parsing || !prompt.trim()}
+        title="Parse prompt to pre-fill fields"
+      >
+        <Sparkles size={14} /> {parsing ? 'Parsing…' : 'Auto-fill from Prompt'}
+      </button>
 
       {/* Config grid */}
       <div className="config-grid">
         {/* Asset */}
         <div className="config-field">
-          <label className="config-label">Asset</label>
+          <label className="config-label">Asset / Symbol</label>
           <input
             className="iris-input font-mono"
             type="text"
             value={asset}
             onChange={(e) => setAsset(e.target.value.toUpperCase())}
-            placeholder="AAPL"
+            placeholder="RELIANCE"
             disabled={isRunning}
           />
         </div>
@@ -282,9 +274,7 @@ export default function StrategyInputPanel({ compact = false }: { compact?: bool
           grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
           gap: 0.75rem;
         }
-        .config-field-wide {
-          grid-column: span 2;
-        }
+        .config-field-wide { grid-column: span 2; }
         .config-label {
           display: block;
           font-size: 0.6875rem;
@@ -326,12 +316,8 @@ export default function StrategyInputPanel({ compact = false }: { compact?: bool
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         @media (max-width: 640px) {
-          .config-grid {
-            grid-template-columns: 1fr 1fr;
-          }
-          .config-field-wide {
-            grid-column: span 2;
-          }
+          .config-grid { grid-template-columns: 1fr 1fr; }
+          .config-field-wide { grid-column: span 2; }
         }
       `}</style>
     </div>

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import type { Tearsheet, HistorySummary, AutomateResult } from '../api/client'
-import { runStrategy, listTearsheets, automateStrategy, healthCheck } from '../api/client'
+import type { Tearsheet, HistorySummary, AutomateResult, CurrentUser } from '../api/client'
+import { runStrategy, listTearsheets, automateStrategy, healthCheck, getMe } from '../api/client'
 
 /* ── Types ───────────────────────────────────────────────────────── */
 
@@ -38,6 +38,37 @@ export const EXPERT_OPTIONS: { value: ExpertType; label: string }[] = [
   { value: 'microstructure', label: 'Market Microstructure' },
 ]
 
+/* ── localStorage helpers ────────────────────────────────────────── */
+
+const LS_KEY = 'iris_defaults'
+
+interface PersistedDefaults {
+  capital?: number
+  commissionBps?: number
+  slippageBps?: number
+  maxPositionPct?: number
+  mcPaths?: number
+  expertType?: ExpertType
+  asset?: string
+}
+
+function loadDefaults(): PersistedDefaults {
+  try {
+    const raw = localStorage.getItem(LS_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveToStorage(defaults: PersistedDefaults): void {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(defaults))
+  } catch {
+    // ignore storage errors
+  }
+}
+
 /* ── Store Interface ─────────────────────────────────────────────── */
 
 interface IRISStore {
@@ -73,6 +104,9 @@ interface IRISStore {
   // ── Backend health ──
   backendAlive: boolean
 
+  // ── Current user ──
+  currentUser: CurrentUser | null
+
   // ── Input actions ──
   setPrompt: (p: string) => void
   setAsset: (a: string) => void
@@ -101,6 +135,12 @@ interface IRISStore {
 
   // ── Health ──
   checkHealth: () => Promise<void>
+
+  // ── User ──
+  fetchUser: () => Promise<void>
+
+  // ── Settings persistence ──
+  saveDefaults: () => void
 }
 
 /* ── Helper ──────────────────────────────────────────────────────── */
@@ -124,20 +164,23 @@ function normalizeDate(d: string): string {
   throw new Error('Invalid date format. Use YYYY-MM-DD')
 }
 
+/* ── Hydrate from localStorage ───────────────────────────────────── */
+const persisted = loadDefaults()
+
 /* ── Store ────────────────────────────────────────────────────────── */
 
 export const useIRISStore = create<IRISStore>((set, get) => ({
-  // Defaults
+  // Defaults — hydrated from localStorage where available
   prompt: '',
-  asset: 'AAPL',
-  startDate: '2019-01-01',
-  endDate: '2024-12-31',
-  capital: 100000,
-  commissionBps: 10,
-  slippageBps: 5,
-  maxPositionPct: 100,
-  mcPaths: 1000,
-  expertType: 'risk_analysis',
+  asset:          persisted.asset         ?? 'RELIANCE',
+  startDate: '2022-01-01',
+  endDate:   '2024-12-31',
+  capital:        persisted.capital        ?? 100000,
+  commissionBps:  persisted.commissionBps  ?? 10,
+  slippageBps:    persisted.slippageBps    ?? 5,
+  maxPositionPct: persisted.maxPositionPct ?? 100,
+  mcPaths:        persisted.mcPaths        ?? 1000,
+  expertType:     persisted.expertType     ?? 'risk_analysis',
 
   appPhase: 'idle',
   error: null,
@@ -153,6 +196,7 @@ export const useIRISStore = create<IRISStore>((set, get) => ({
   automateUseExpert: false,
 
   backendAlive: false,
+  currentUser: null,
 
   // ── Input setters ──
   setPrompt: (p) => set({ prompt: p }),
@@ -201,13 +245,15 @@ export const useIRISStore = create<IRISStore>((set, get) => ({
 
     const setAgent = get().setAgentStatus
 
-    // Simulate agent progression
     setAgent('Manager Agent', 'running', 'Parsing strategy...')
     await delay(500)
     setAgent('Manager Agent', 'done', 'Strategy parsed')
-    
+
     setAgent('Trader Strategy', 'running', 'Running trader simulation...')
     setAgent('Expert Agent', 'running', `Running ${state.expertType} analysis...`)
+
+    // Read Groq key from env (set by user in VITE_GROQ_API_KEY)
+    const groqKey = import.meta.env.VITE_GROQ_API_KEY as string | undefined
 
     try {
       const tearsheet = await runStrategy({
@@ -221,6 +267,7 @@ export const useIRISStore = create<IRISStore>((set, get) => ({
         max_position_pct: state.maxPositionPct / 100,
         monte_carlo_paths: state.mcPaths,
         expert_type: state.expertType,
+        groq_api_key: groqKey || undefined,
       })
 
       setAgent('Trader Strategy', 'done', `Completed in ${tearsheet.trader.elapsed_seconds.toFixed(1)}s`)
@@ -236,27 +283,21 @@ export const useIRISStore = create<IRISStore>((set, get) => ({
       set({ tearsheet, appPhase: 'complete' })
     } catch (err: any) {
       const message = err?.response?.data?.detail || err?.message || 'Unknown error'
-      
-      // Handle specific broadcasting errors
+
+      // Handle broadcasting shape-mismatch errors with a retry
       if (message.includes('operands could not be broadcast together with shapes')) {
-        console.log('Detected broadcasting error, attempting retry with adjusted parameters...')
-        
-        // Retry with adjusted parameters
         try {
-          // Reset agent statuses for retry
           setAgent('Trader Strategy', 'running', 'Retrying with adjusted parameters...')
           setAgent('Expert Agent', 'running', 'Retrying with adjusted parameters...')
-          
-          // Retry with smaller date range or adjusted parameters
+
           const adjustedEndDate = new Date(normalizeDate(state.endDate))
           const adjustedStartDate = new Date(normalizeDate(state.startDate))
           const dateDiff = (adjustedEndDate.getTime() - adjustedStartDate.getTime()) / (1000 * 60 * 60 * 24)
-          
-          // If date range is too large, reduce it
+
           if (dateDiff > 1000) {
-            adjustedStartDate.setTime(adjustedEndDate.getTime() - (1000 * 24 * 60 * 60 * 1000)) // 1000 days max
+            adjustedStartDate.setTime(adjustedEndDate.getTime() - 1000 * 24 * 60 * 60 * 1000)
           }
-          
+
           const tearsheet = await runStrategy({
             prompt: state.prompt,
             asset: state.asset,
@@ -265,13 +306,14 @@ export const useIRISStore = create<IRISStore>((set, get) => ({
             initial_capital: state.capital,
             commission_bps: state.commissionBps,
             slippage_bps: state.slippageBps,
-            max_position_pct: Math.min(state.maxPositionPct, 50), // Cap at 50%
-            monte_carlo_paths: Math.min(state.mcPaths, 500), // Reduce MC paths
+            max_position_pct: Math.min(state.maxPositionPct, 50) / 100,
+            monte_carlo_paths: Math.min(state.mcPaths, 500),
             expert_type: state.expertType,
+            groq_api_key: groqKey || undefined,
           })
-          
-          setAgent('Trader Strategy', 'done', `Completed in ${tearsheet.trader.elapsed_seconds.toFixed(1)}s (retry)`)
-          setAgent('Expert Agent', 'done', `Completed in ${tearsheet.expert.elapsed_seconds.toFixed(1)}s (retry)`)
+
+          setAgent('Trader Strategy', 'done', `Completed (retry) in ${tearsheet.trader.elapsed_seconds.toFixed(1)}s`)
+          setAgent('Expert Agent', 'done', `Completed (retry) in ${tearsheet.expert.elapsed_seconds.toFixed(1)}s`)
           await delay(300)
           setAgent('Verifier', 'running', 'Validating results...')
           await delay(400)
@@ -281,26 +323,23 @@ export const useIRISStore = create<IRISStore>((set, get) => ({
           setAgent('Comparator', 'done', 'Tearsheet ready')
 
           set({ tearsheet, appPhase: 'complete' })
+          return
         } catch (retryErr: any) {
           const retryMessage = retryErr?.response?.data?.detail || retryErr?.message || 'Retry failed'
           const statuses = get().agentStatuses
           for (const [name, info] of Object.entries(statuses)) {
-            if (info.status === 'running') {
-              setAgent(name, 'error', retryMessage)
-            }
+            if (info.status === 'running') setAgent(name, 'error', retryMessage)
           }
           set({ error: retryMessage, appPhase: 'error' })
+          return
         }
-      } else {
-        // Handle other errors normally
-        const statuses = get().agentStatuses
-        for (const [name, info] of Object.entries(statuses)) {
-          if (info.status === 'running') {
-            setAgent(name, 'error', message)
-          }
-        }
-        set({ error: message, appPhase: 'error' })
       }
+
+      const statuses = get().agentStatuses
+      for (const [name, info] of Object.entries(statuses)) {
+        if (info.status === 'running') setAgent(name, 'error', message)
+      }
+      set({ error: message, appPhase: 'error' })
     }
   },
 
@@ -347,5 +386,31 @@ export const useIRISStore = create<IRISStore>((set, get) => ({
     } catch {
       set({ backendAlive: false })
     }
+  },
+
+  // ── User ──
+  fetchUser: async () => {
+    try {
+      const user = await getMe()
+      set({ currentUser: user })
+    } catch {
+      // Not authenticated or backend down — keep null
+      set({ currentUser: null })
+    }
+  },
+
+  // ── Settings persistence ──
+  saveDefaults: () => {
+    const s = get()
+    const defaults: PersistedDefaults = {
+      capital:        s.capital,
+      commissionBps:  s.commissionBps,
+      slippageBps:    s.slippageBps,
+      maxPositionPct: s.maxPositionPct,
+      mcPaths:        s.mcPaths,
+      expertType:     s.expertType,
+      asset:          s.asset,
+    }
+    saveToStorage(defaults)
   },
 }))

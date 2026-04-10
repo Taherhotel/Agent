@@ -44,7 +44,7 @@ export default function RollingSharpe({ window = 63 }: { window?: number }) {
           <CartesianGrid stroke="var(--border)" vertical={false} />
           <XAxis dataKey="date" tick={{ fill: 'var(--text2)', fontSize: 10 }} tickLine={false} axisLine={{ stroke: 'var(--border)' }} minTickGap={60} tickFormatter={(d) => new Date(d).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })} />
           <YAxis tick={{ fill: 'var(--text2)', fontSize: 10 }} tickLine={false} axisLine={false} width={50} domain={['auto', 'auto']} />
-          <Tooltip contentStyle={{ background: 'var(--panel)', border: '1px solid var(--border2)', borderRadius: 8 }} formatter={(v: number, name) => [v?.toFixed(2), name === 'trader' ? 'Trader' : 'Expert']} />
+          <Tooltip contentStyle={{ background: 'var(--panel)', border: '1px solid var(--border2)', borderRadius: 8 }} formatter={(v, name) => [Number(v).toFixed(2), name === 'trader' ? 'Trader' : 'Expert']} />
           <Line type="monotone" dataKey="trader" name="Trader" stroke={COLORS.trader} strokeWidth={2} dot={false} connectNulls />
           <Line type="monotone" dataKey="expert" name="Expert" stroke={COLORS.expert} strokeWidth={2} dot={false} connectNulls />
         </LineChart>

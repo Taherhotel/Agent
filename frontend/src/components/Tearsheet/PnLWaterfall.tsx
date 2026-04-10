@@ -30,7 +30,7 @@ export default function PnLWaterfall() {
           <CartesianGrid stroke="var(--border)" vertical={false} />
           <XAxis dataKey="name" tick={{ fill: 'var(--text2)', fontSize: 10 }} tickLine={false} axisLine={{ stroke: 'var(--border)' }} />
           <YAxis tick={{ fill: 'var(--text2)', fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v.toFixed(1)}%`} />
-          <Tooltip contentStyle={{ background: 'var(--panel)', border: '1px solid var(--border2)', borderRadius: 8 }} formatter={(v: number) => [`${v.toFixed(2)}%`, 'P&L %']} />
+          <Tooltip contentStyle={{ background: 'var(--panel)', border: '1px solid var(--border2)', borderRadius: 8 }} formatter={(v) => [`${Number(v).toFixed(2)}%`, 'P&L %']} />
           <Bar dataKey="pnl_pct" radius={[4,4,0,0]}>
             {data.map((entry, idx) => (
               <Cell key={`cell-${idx}`} fill={entry.pnl_pct >= 0 ? COLOR_GAIN : COLOR_LOSS} />

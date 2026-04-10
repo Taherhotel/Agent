@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { getTearsheet } from '../api/client'
 import type { Tearsheet } from '../api/client'
-import EquityCurveStandalone from '../components/Tearsheet/EquityCurve'
+import EquityCurve from '../components/Tearsheet/EquityCurve'
 import ComparisonTable from '../components/Tearsheet/ComparisonTable'
 import MetricsGrid from '../components/Tearsheet/MetricsGrid'
 import IrisSaysPanel from '../components/Tearsheet/IrisSaysPanel'
@@ -68,7 +68,7 @@ export default function HistoryDetail() {
             </div>
 
             <div className="grid-2">
-              <EquityCurveStandalone />
+              <EquityCurve />
               <MetricsGrid />
             </div>
 

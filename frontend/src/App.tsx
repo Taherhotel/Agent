@@ -8,16 +8,18 @@ import Settings from './pages/Settings'
 import AutomateModal from './components/AutomateModal'
 import { useIRISStore } from './store/irisStore'
 
-
 export default function App() {
   const checkHealth = useIRISStore((s) => s.checkHealth)
+  const fetchUser = useIRISStore((s) => s.fetchUser)
   const automateModalOpen = useIRISStore((s) => s.automateModalOpen)
 
   useEffect(() => {
+    // Run health check and fetch user in parallel on mount
     checkHealth()
+    fetchUser()
     const interval = setInterval(checkHealth, 15000)
     return () => clearInterval(interval)
-  }, [checkHealth])
+  }, [checkHealth, fetchUser])
 
   return (
     <>

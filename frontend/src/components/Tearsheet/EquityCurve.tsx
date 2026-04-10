@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  Area, CartesianGrid, Legend
+  CartesianGrid
 } from 'recharts'
 import { useIRISStore } from '../../store/irisStore'
 
@@ -93,7 +93,7 @@ export default function EquityCurve() {
               fontSize: '0.75rem',
               color: 'var(--text-primary)',
             }}
-            formatter={(value: number, name: string) => [formatCurrency(value), name]}
+            formatter={(value, name) => [formatCurrency(Number(value)), name as string]}
             labelFormatter={(label) => new Date(label).toLocaleDateString('en-US', {
               month: 'long', day: 'numeric', year: 'numeric'
             })}

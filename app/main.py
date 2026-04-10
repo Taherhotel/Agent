@@ -7,6 +7,8 @@ from app.api.backtest import router as backtest_router
 from app.api.tearsheet import router as tearsheet_router
 from app.api.automator import router as automator_router
 from app.api.auth import router as auth_router
+from app.api.chat import router as chat_router
+from app.api.market import router as market_router
 from app.db import init_db
 
 
@@ -40,6 +42,8 @@ app.include_router(strategy_router, prefix="/api", tags=["Strategy"])
 app.include_router(backtest_router, prefix="/api", tags=["Backtest"])
 app.include_router(tearsheet_router, prefix="/api", tags=["Tearsheet"])
 app.include_router(automator_router, prefix="/api", tags=["Automator"])
+app.include_router(chat_router,      prefix="/api", tags=["Chat"])
+app.include_router(market_router,    prefix="/api", tags=["Market"])
 
 
 # ── Health Check ────────────────────────────────────────────────────────

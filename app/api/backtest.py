@@ -12,6 +12,7 @@ from app.utils.logger import get_logger
 from app.db import get_session
 from app.api.auth import get_current_user
 from app.api.strategy import _persist_tearsheet
+from app.models import User
 
 log = get_logger(__name__)
 router = APIRouter()

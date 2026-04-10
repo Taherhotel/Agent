@@ -1,28 +1,7 @@
 import { motion } from 'framer-motion'
-import { CheckCircle2, Loader2, Circle, XCircle, RotateCcw } from 'lucide-react'
+import { Loader2, RotateCcw } from 'lucide-react'
 import { useIRISStore, AGENT_NAMES } from '../store/irisStore'
-import type { AgentStatus } from '../store/irisStore'
 
-function StatusIcon({ status }: { status: AgentStatus }) {
-  switch (status) {
-    case 'done':
-      return <CheckCircle2 size={18} color="var(--accent-green)" />
-    case 'running':
-      return (
-        <span className="pulse-dot" style={{
-          display: 'inline-block',
-          width: 12, height: 12,
-          background: 'var(--accent-teal)',
-          borderRadius: '50%',
-          boxShadow: '0 0 10px var(--accent-teal)',
-        }} />
-      )
-    case 'error':
-      return <XCircle size={18} color="var(--accent-red)" />
-    default:
-      return <Circle size={18} color="var(--text-secondary)" strokeWidth={1.5} />
-  }
-}
 
 export default function AgentPipeline({ compact = false }: { compact?: boolean }) {
   const agentStatuses = useIRISStore((s) => s.agentStatuses)

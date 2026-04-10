@@ -1,7 +1,23 @@
 import { NavLink } from 'react-router-dom'
 import { BarChart3, Clock, Settings, Activity } from 'lucide-react'
+import { useIRISStore } from '../store/irisStore'
+
+function getInitials(email: string): string {
+  const parts = email.split('@')[0].split(/[._-]/)
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
+  return email.slice(0, 2).toUpperCase()
+}
 
 export default function TopNavigation() {
+  const currentUser = useIRISStore((s) => s.currentUser)
+  const backendAlive = useIRISStore((s) => s.backendAlive)
+
+  const displayEmail = currentUser?.email ?? '—'
+  const displayName  = currentUser?.email
+    ? currentUser.email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    : 'IRIS User'
+  const initials = currentUser?.email ? getInitials(currentUser.email) : '?'
+
   return (
     <div className="top-navigation">
       <div className="nav-brand">
@@ -10,38 +26,42 @@ export default function TopNavigation() {
       </div>
 
       <nav className="nav-menu">
-        <NavLink
-          to="/"
-          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-        >
+        <NavLink to="/" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <BarChart3 size={16} />
           <span>Strategy Views</span>
         </NavLink>
 
-        <NavLink
-          to="/history"
-          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-        >
+        <NavLink to="/history" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <Clock size={16} />
           <span>History</span>
         </NavLink>
 
-        <NavLink
-          to="/settings"
-          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-        >
+        <NavLink to="/settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <Settings size={16} />
           <span>Settings</span>
         </NavLink>
       </nav>
 
+      {/* Backend alive indicator */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '16px' }}>
+        <span style={{
+          width: 8, height: 8, borderRadius: '50%',
+          background: backendAlive ? 'var(--accent-green)' : 'var(--accent-red)',
+          boxShadow: backendAlive ? '0 0 6px var(--accent-green)' : '0 0 6px var(--accent-red)',
+          display: 'inline-block',
+        }} />
+        <span style={{ fontSize: 11, color: 'var(--text2)', fontFamily: 'var(--mono)' }}>
+          {backendAlive ? 'Connected' : 'Offline'}
+        </span>
+      </div>
+
       <div className="nav-user">
         <div className="user-avatar">
-          <span>JD</span>
+          <span>{initials}</span>
         </div>
         <div className="user-info">
-          <div className="user-name">John Doe</div>
-          <div className="user-email">john.doe@iris.local</div>
+          <div className="user-name">{displayName}</div>
+          <div className="user-email">{displayEmail}</div>
         </div>
       </div>
 
@@ -97,10 +117,7 @@ export default function TopNavigation() {
           position: relative;
         }
 
-        .nav-item:hover {
-          color: var(--text);
-          background: var(--hover);
-        }
+        .nav-item:hover { color: var(--text); background: var(--hover); }
 
         .nav-item.active {
           color: var(--teal);
@@ -123,7 +140,6 @@ export default function TopNavigation() {
           display: flex;
           align-items: center;
           gap: 12px;
-          margin-left: auto;
           padding: 8px 12px;
           border-radius: 8px;
           background: var(--raised);
@@ -132,10 +148,7 @@ export default function TopNavigation() {
           transition: all 0.2s ease;
         }
 
-        .nav-user:hover {
-          background: var(--hover);
-          border-color: var(--border);
-        }
+        .nav-user:hover { background: var(--hover); border-color: var(--border); }
 
         .user-avatar {
           width: 36px;
@@ -151,11 +164,7 @@ export default function TopNavigation() {
           font-family: var(--mono);
         }
 
-        .user-info {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
+        .user-info { display: flex; flex-direction: column; gap: 2px; }
 
         .user-name {
           font-size: 13px;
@@ -171,41 +180,14 @@ export default function TopNavigation() {
         }
 
         @media (max-width: 768px) {
-          .top-navigation {
-            padding: 0 16px;
-            height: 56px;
-          }
-
-          .nav-brand {
-            margin-right: 24px;
-          }
-
-          .brand-text {
-            font-size: 16px;
-          }
-
-          .nav-item {
-            padding: 8px 12px;
-            font-size: 13px;
-          }
-
-          .nav-item span {
-            display: none;
-          }
-
-          .user-info {
-            display: none;
-          }
-
-          .nav-user {
-            padding: 6px;
-          }
-
-          .user-avatar {
-            width: 32px;
-            height: 32px;
-            font-size: 11px;
-          }
+          .top-navigation { padding: 0 16px; height: 56px; }
+          .nav-brand { margin-right: 24px; }
+          .brand-text { font-size: 16px; }
+          .nav-item { padding: 8px 12px; font-size: 13px; }
+          .nav-item span { display: none; }
+          .user-info { display: none; }
+          .nav-user { padding: 6px; }
+          .user-avatar { width: 32px; height: 32px; font-size: 11px; }
         }
 
         @keyframes pulse {
