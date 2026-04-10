@@ -14,8 +14,8 @@ class User(SQLModel, table=True):
 class TearsheetRecord(SQLModel, table=True):
     run_id: str = Field(primary_key=True)
 
-    # Proper relational link to User
-    user_id: int = Field(foreign_key="user.id", index=True)
+    # Soft reference to User (no FK constraint so anonymous/seed-less runs never fail)
+    user_id: Optional[int] = Field(default=None, index=True)
 
     asset: str
     start_date: str

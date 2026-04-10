@@ -42,16 +42,16 @@ class AutomatorAgent:
             log.info(f"[{self.name}] Config saved to {config_path}")
 
             return {
-                "success": True,
+                "status": "success",
                 "run_id": run_id,
-                "message": f"Strategy deployed to paper trading. Config at {config_path}",
+                "message": f"Strategy deployed to paper trading (alpaca_paper). Config saved as {run_id}.json",
                 "elapsed_seconds": round(time.time() - t0, 2),
             }
         except Exception as e:
             log.error(f"[{self.name}] Deploy failed: {e}")
             return {
-                "success": False,
+                "status": "error",
                 "run_id": run_id,
-                "message": str(e),
+                "error": str(e),
                 "elapsed_seconds": round(time.time() - t0, 2),
             }

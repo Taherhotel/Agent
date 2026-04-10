@@ -10,7 +10,8 @@ engine = create_engine(settings.db_url, echo=False, connect_args={"check_same_th
 
 
 def get_session():
-    return Session(engine)
+    with Session(engine) as session:
+        yield session
 
 
 def init_db():

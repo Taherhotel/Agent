@@ -1,7 +1,8 @@
 """
 Risk Analysis Expert Agent.
-Algorithms: Monte Carlo GBM paths + GARCH(1,1) volatility estimation.
+Algorithms: Monte Carlo GBM paths + GARCH(1,1) / EGARCH volatility estimation.
 Flow: fit GARCH on historical returns → vol-scale positions → MC median as equity curve.
+Delegates all math to app.algorithms.risk.garch and app.algorithms.risk.monte_carlo.
 """
 from __future__ import annotations
 import time
@@ -11,36 +12,16 @@ from app.nlp.schema import StrategySpec, AgentResult
 from app.data.loader import load_ohlcv
 from app.utils.logger import get_logger
 
+# ── Algorithm library imports ────────────────────────────────────────────────
+from app.algorithms.risk.garch import GARCHModel, EGARCHModel
+from app.algorithms.risk.monte_carlo import (
+    simulate_gbm_paths,
+    value_at_risk,
+    cvar,
+    annualised_return_distribution,
+)
+
 log = get_logger(__name__)
-
-
-def _garch_vol_forecast(returns: np.ndarray, horizon: int = 1) -> float:
-    """Simplified GARCH(1,1) vol forecast."""
-    omega = 0.000001
-    alpha = 0.09
-    beta = 0.90
-    var_t = np.var(returns)
-    for r in returns[-60:]:
-        var_t = omega + alpha * r**2 + beta * var_t
-    # Forecast horizon steps ahead
-    long_run_var = omega / (1 - alpha - beta) if (alpha + beta) < 1 else var_t
-    forecast_var = var_t
-    for _ in range(horizon - 1):
-        forecast_var = omega + (alpha + beta) * forecast_var
-    return float(np.sqrt(forecast_var * 252))
-
-
-def _simulate_gbm_paths(S0: float, mu: float, sigma: float,
-                         n_days: int, n_paths: int, seed: int = 42) -> np.ndarray:
-    """Simulate GBM paths. Returns array of shape (n_paths, n_days)."""
-    rng = np.random.default_rng(seed)
-    dt = 1 / 252
-    drift = (mu - 0.5 * sigma**2) * dt
-    vol = sigma * np.sqrt(dt)
-    z = rng.standard_normal((n_paths, n_days))
-    log_returns = drift + vol * z
-    paths = S0 * np.exp(np.cumsum(log_returns, axis=1))
-    return np.column_stack([np.full(n_paths, S0), paths])
 
 
 class RiskAnalysisAgent(BaseExpertAgent):
@@ -55,32 +36,43 @@ class RiskAnalysisAgent(BaseExpertAgent):
             returns = np.diff(close) / close[:-1]
             returns = returns[np.isfinite(returns)]
 
+            # ── GARCH(1,1) volatility forecast ──────────────────────────────
+            garch = GARCHModel().fit(returns)
+            sigma = garch.forecast_annualised_vol(horizon=1)
             mu = float(np.mean(returns)) * 252
-            sigma = _garch_vol_forecast(returns)
-            n_days = len(close)
-            n_paths = 200  # reduced for speed; use 10k in prod
 
-            # Simulate price paths, then scale to equity using initial capital
-            paths = _simulate_gbm_paths(
+            # ── EGARCH for leverage-adjusted vol as secondary metric ─────────
+            egarch = EGARCHModel().fit(returns)
+            egarch_vol = egarch.forecast_annualised_vol()
+
+            # ── Monte Carlo GBM paths ────────────────────────────────────────
+            n_days = len(close)
+            n_paths = 200  # use 1000+ in production
+
+            paths = simulate_gbm_paths(
                 S0=float(close[0]),
-                mu=mu / 252,
-                sigma=sigma / np.sqrt(252),
+                mu=mu,
+                sigma=sigma,
                 n_days=n_days,
-                n_paths=n_paths
+                n_paths=n_paths,
             )
+
             median_path = np.median(paths, axis=0)
-            equity_curve = [round(float(spec.initial_capital * (v / median_path[0])), 2) for v in median_path[:n_days]]
+            equity_curve = [
+                round(float(spec.initial_capital * (v / median_path[0])), 2)
+                for v in median_path[:n_days]
+            ]
             dates = [str(d.date()) for d in df.index[:n_days]]
 
-            # Sample paths for UI visualization
-            # Take 50 paths or total available, evenly spaced
+            # Sample paths for UI visualisation (up to 50 paths)
             stride = max(1, n_paths // 50)
             sampled_paths = paths[::stride, :n_days].tolist()
 
-            # Compute VaR/CVaR as extras
-            final_values = paths[:, -1]
-            var_95 = float(np.percentile(final_values, 5))
-            cvar_95 = float(np.mean(final_values[final_values <= var_95]))
+            # ── Risk measures via algorithm library ──────────────────────────
+            var_95 = value_at_risk(paths, confidence=0.95)
+            cvar_95 = cvar(paths, confidence=0.95)
+            years = n_days / 252
+            ret_dist = annualised_return_distribution(paths, years=max(years, 0.01))
 
             return AgentResult(
                 agent_name=self.name,
@@ -89,17 +81,22 @@ class RiskAnalysisAgent(BaseExpertAgent):
                 trade_log=[],
                 paths=sampled_paths,
                 metrics={
-                    "garch_vol": round(sigma, 4),
-                    "mu_annual": round(mu, 4),
-                    "var_95_final": round(var_95, 2),
-                    "cvar_95_final": round(cvar_95, 2),
-                    "p5": round(float(np.percentile(final_values, 5)) / spec.initial_capital - 1, 4),
-                    "p50": round(float(np.percentile(final_values, 50)) / spec.initial_capital - 1, 4),
-                    "p95": round(float(np.percentile(final_values, 95)) / spec.initial_capital - 1, 4),
+                    "garch_vol":        round(sigma, 4),
+                    "egarch_vol":       round(egarch_vol, 4),
+                    "mu_annual":        round(mu, 4),
+                    "var_95":           round(var_95, 2),
+                    "cvar_95":          round(cvar_95, 2),
+                    "return_dist_p5":   round(ret_dist["p5"], 4),
+                    "return_dist_p50":  round(ret_dist["p50"], 4),
+                    "return_dist_p95":  round(ret_dist["p95"], 4),
+                    "return_dist_mean": round(ret_dist["mean"], 4),
                 },
                 elapsed_seconds=round(time.time() - t0, 2),
             )
         except Exception as e:
-            log.error(f"[{self.name}] Error: {e}")
-            return AgentResult(agent_name=self.name, error=str(e),
-                               elapsed_seconds=round(time.time() - t0, 2))
+            log.error(f"[{self.name}] Error: {e}", exc_info=True)
+            return AgentResult(
+                agent_name=self.name,
+                error=str(e),
+                elapsed_seconds=round(time.time() - t0, 2),
+            )

@@ -11,7 +11,6 @@ from app.agents.manager import ManagerAgent
 from app.utils.logger import get_logger
 from app.db import get_session
 from app.api.auth import get_current_user
-from app.models import User
 from app.api.strategy import _persist_tearsheet
 
 log = get_logger(__name__)
@@ -42,15 +41,12 @@ async def run_backtest(
             slippage_bps=req.slippage_bps,
             max_position_pct=req.max_position_pct,
             expert_type=req.expert_type,
+            groq_api_key=req.groq_api_key,
         )
 
         result = ts.model_dump()
 
-        # Persist tearsheet (support both implementations)
-        try:
-            _persist_tearsheet(session, result)
-        except TypeError:
-            _persist_tearsheet(result)
+        _persist_tearsheet(session, result, user_id=getattr(current_user, 'id', None))
 
         return result
 

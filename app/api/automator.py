@@ -20,6 +20,30 @@ router = APIRouter()
 _automator = AutomatorAgent()
 
 
+@router.post("/automate/strategy")
+async def automate_from_spec(
+    spec: StrategySpec,
+    current_user=Depends(get_current_user),
+):
+    """
+    Deploy directly from StrategySpec payload.
+    Must be declared BEFORE /automate/{run_id} to avoid being swallowed by it.
+    """
+
+    run_id = new_run_id()
+
+    try:
+        result = _automator.deploy(spec, run_id)
+        return result
+
+    except Exception as e:
+        log.error(f"/automate/strategy error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+
 @router.post("/automate/{run_id}")
 async def automate_from_run(
     run_id: str,
@@ -65,29 +89,6 @@ async def automate_from_run(
 
     except Exception as e:
         log.error(f"/automate/{run_id} error: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
-
-
-@router.post("/automate/strategy")
-async def automate_from_spec(
-    spec: StrategySpec,
-    current_user=Depends(get_current_user),
-):
-    """
-    Deploy directly from StrategySpec payload.
-    """
-
-    run_id = new_run_id()
-
-    try:
-        result = _automator.deploy(spec, run_id)
-        return result
-
-    except Exception as e:
-        log.error(f"/automate/strategy error: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=str(e)

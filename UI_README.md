@@ -1,10 +1,15 @@
-# IRIS — UI Design Specification
+# IRIS — UI Design Reference
+
+> This document describes the design system and component layout for the IRIS frontend.
+> For the full component tree and file structure, see `frontend/README.md`.
+
+---
 
 ## Design Language
 
-**Aesthetic**: Dark, terminal-inspired financial interface. Think Bloomberg meets modern AI.  
-**Theme**: Deep navy/charcoal backgrounds, electric teal accents, monospace data readouts.  
-**Principle**: Every pixel earns its place. Data-dense but never cluttered.
+**Aesthetic**: Dark, terminal-inspired financial interface. Bloomberg meets modern AI.
+**Theme**: Deep navy/charcoal backgrounds, electric teal accents, monospace data readouts.
+**Principle**: Data-dense but never cluttered. Every element earns its place.
 
 ---
 
@@ -33,84 +38,73 @@
 | Section Headings | `DM Mono` | 16px | 500 |
 | Body / Labels | `IBM Plex Sans` | 14px | 400 |
 | Data Readouts | `DM Mono` | 13–22px | 400–500 |
-| Code / Signals | `DM Mono` | 12px | 400 |
 
 ---
 
 ## Frontend Tech Stack
 
-| Layer | Technology | Reason |
-|---|---|---|
-| Framework | **React 18** + JavaScript | Component model, type safety |
-| Build | **Vite** | Fast HMR, lean bundle |
-| Styling | **Tailwind CSS** + CSS Variables | Utility-first + design token system |
-| Charts | **Recharts** | Composable, React-native charting |
-| State | **Zustand** | Lightweight, no boilerplate |
-| API | **Axios** + React Query | Caching, loading/error states |
-| Animation | **Framer Motion** | Agent progress animations |
-| Icons | **Lucide React** | Consistent, tree-shakeable |
-| Fonts | Google Fonts — DM Mono, IBM Plex Sans | |
+| Layer | Technology |
+|---|---|
+| Framework | React 18 + TypeScript |
+| Build | Vite |
+| Charts | Recharts |
+| State | Zustand |
+| API | Axios |
+| Animations | Framer Motion |
+| Icons | Lucide React |
+| Fonts | DM Mono, IBM Plex Sans (Google Fonts) |
 
 ---
 
 ## Application Layout
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  NAVBAR                                                         │
-│  [ IRIS ]    Strategy Lab    History    Settings        [●Live] │
-└─────────────────────────────────────────────────────────────────┘
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  STRATEGY INPUT PANEL                                    │   │
-│  │                                                          │   │
-│  │  > Describe your trading strategy in plain English...    │   │
-│  │                                                          │   │
-│  │  [Asset: AAPL ▼]  [From: 2020-01-01]  [To: 2024-12-31]   │   │
-│  │  [Capital: $100,000]  [Commission: 0.1%]                 │   │
-│  │                                         [ RUN IRIS ▶ ]  │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  AGENT PIPELINE STATUS                                   │   │
-│  │                                                          │   │
-│  │  [●] Manager       parsing strategy...       ✓ done      │   │
-│  │  [●] Trader Agent  running simulation...     ◌ running   │   │
-│  │  [○] Expert Agent  (Risk Analysis)           ── waiting  │   │
-│  │  [○] Verifier      ──                        ── waiting  │   │
-│  │  [○] Comparator    ──                        ── waiting  │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  ┌─────────────────────────────┐  ┌───────────────────────────┐ │
-│  │  EQUITY CURVE               │  │  PERFORMANCE METRICS      │ │
-│  │                             │  │                           │ │
-│  │  $180k ─────╮               │  │  Sharpe Ratio   1.84      │ │
-│  │  $140k      ╰──╮            │  │  Max Drawdown  -12.3%     │ │
-│  │  $100k ─────────────────    │  │  Win Rate       61.4%     │ │
-│  │  [Trader] [Expert] [SPY]    │  │  CAGR           18.2%     │ │
-│  │                             │  │  Sortino        2.31      │ │
-│  └─────────────────────────────┘  └───────────────────────────┘ │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  TRADER vs EXPERT COMPARISON                             │   │
-│  │                                                          │   │
-│  │           Your Strategy    Expert (Risk)    Benchmark    │   │
-│  │  Return   +18.2%           +22.7%           +11.4%       │   │
-│  │  Sharpe   1.84             2.21             0.92         │   │
-│  │  Drawdown -12.3%           -8.1%            -18.7%       │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  IRIS SAYS                                               │   │
-│  │                                                          │   │
-│  │  "Your MA crossover strategy returned 18.2% annually     │   │
-│  │   with a Sharpe of 1.84. The expert Risk Analysis agent  │   │
-│  │   outperformed by 4.5pp using GARCH-adjusted position    │   │
-│  │   sizing. Would you like to automate either strategy?"   │   │
-│  │                                                          │   │
-│  │           [ AUTOMATE MY STRATEGY ]  [ AUTOMATE EXPERT ]  │   │
-│  └──────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│  NAVBAR                                                        │
+│  [ IRIS ]    Strategy Lab    History    Settings      [● Live] │
+└────────────────────────────────────────────────────────────────┘
+│                                                                │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  STRATEGY INPUT PANEL                                    │  │
+│  │  > Describe your trading strategy in plain English...    │  │
+│  │  [Asset: AAPL ▼]  [From: 2020-01-01]  [To: 2024-12-31]  │  │
+│  │  [Capital: $100,000]   [Commission: 0.1%]                │  │
+│  │                                        [ RUN IRIS ▶ ]   │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                                                                │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  AGENT PIPELINE STATUS                                   │  │
+│  │  [●] Manager        parsing strategy...      ✓ done      │  │
+│  │  [●] Trader Agent   running simulation...    ◌ running   │  │
+│  │  [○] Expert Agent   (Risk Analysis)          ── waiting  │  │
+│  │  [○] Verifier       ──                       ── waiting  │  │
+│  │  [○] Comparator     ──                       ── waiting  │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                                                                │
+│  ┌──────────────────────────┐  ┌────────────────────────────┐  │
+│  │  EQUITY CURVE            │  │  PERFORMANCE METRICS       │  │
+│  │  $180k ──╮               │  │  Sharpe Ratio   1.84       │  │
+│  │  $140k    ╰──╮           │  │  Max Drawdown  -12.3%      │  │
+│  │  $100k ──────────────    │  │  Win Rate       61.4%      │  │
+│  │  [Trader] [Expert] [SPY] │  │  CAGR           18.2%      │  │
+│  └──────────────────────────┘  └────────────────────────────┘  │
+│                                                                │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  TRADER vs EXPERT COMPARISON                             │  │
+│  │           Your Strategy   Expert (Risk)   Benchmark      │  │
+│  │  Return   +18.2%          +22.7%          +11.4%         │  │
+│  │  Sharpe   1.84            2.21            0.92           │  │
+│  │  Drawdown -12.3%          -8.1%           -18.7%         │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                                                                │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  IRIS SAYS                                               │  │
+│  │  "Your MA crossover returned 18.2% annually (Sharpe      │  │
+│  │   1.84). The Risk Analysis expert outperformed by 4.5pp  │  │
+│  │   using GARCH-adjusted sizing. Automate either?"         │  │
+│  │          [ AUTOMATE MY STRATEGY ]  [ AUTOMATE EXPERT ]   │  │
+│  └──────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -118,70 +112,41 @@
 ## Screen Breakdown
 
 ### 1. Strategy Input Panel
-- Large dark textarea with blinking cursor, placeholder text showing example strategies
-- Asset selector (searchable dropdown — ticker symbols)
+- Dark textarea with blinking cursor, placeholder strategy examples
+- Searchable asset ticker dropdown
 - Date range pickers (from / to)
 - Capital input + commission/slippage sliders
-- "RUN IRIS" CTA button — teal, full-width on mobile
+- **RUN IRIS** CTA button — teal, animated on click
 
 ### 2. Agent Pipeline Status
-- Vertical list of agents with real-time status dots
-- Three states: `waiting` (hollow), `running` (pulsing teal dot), `done` (solid green ✓)
-- Animated text stream showing what each agent is doing ("parsing rules…", "running 10,000 paths…")
-- Expandable detail row per agent showing intermediate output
+- Vertical list of agents with real-time status indicators
+- Three states: `waiting` (hollow) → `running` (pulsing teal) → `done` (green ✓)
+- Live text stream per agent showing current action
 
 ### 3. Equity Curve Chart
-- Line chart: three overlapping series — Trader Strategy (teal), Expert Strategy (amber), Benchmark SPY (gray)
-- X-axis: dates, Y-axis: portfolio value ($)
-- Hover tooltip: date, all three values, daily return
-- Drawdown shaded region below the curve in translucent red
+- Three overlapping series: **Trader** (teal), **Expert** (amber), **Benchmark SPY** (gray)
+- Hover tooltip showing date + all three values + daily return
+- Drawdown region shaded in translucent red
 - Toggle buttons to show/hide each series
 
 ### 4. Performance Metrics Cards
-- 5 KPI cards in a grid: Sharpe, Max Drawdown, Win Rate, CAGR, Sortino
-- Colour-coded values (green = good, red = bad, amber = neutral)
-- Comparison delta badge (e.g., "+0.37 vs Expert")
+- 5 KPI cards: Sharpe, Max Drawdown, Win Rate, CAGR, Sortino
+- Colour-coded (green = good, red = bad)
+- Delta badge vs Expert (e.g. `+0.37 vs Expert`)
 
 ### 5. Trader vs Expert Comparison Table
-- Side-by-side table: Your Strategy | Expert Agent | SPY Benchmark
-- Rows: Total Return, Sharpe, Sortino, Max Drawdown, Win Rate, Trade Count, Avg Hold
+- Side-by-side: Your Strategy | Expert | SPY Benchmark
+- Rows: Total Return, Sharpe, Sortino, Max Drawdown, Win Rate, Trade Count
 - Winning column highlighted with teal left border
 
-### 6. IRIS Says Panel (LLM Narrative)
-- Dark card with monospace font
-- Streamed plain-English explanation of results from the Manager Agent
-- Two CTA buttons: Automate My Strategy / Automate Expert
-- On click → confirmation modal → Automator Agent triggered
+### 6. IRIS Says Panel
+- Streamed LLM narrative in monospace font
+- Two CTA buttons: **Automate My Strategy** / **Automate Expert**
+- Click → confirmation modal → Automator Agent fires
 
 ---
 
-## Component Tree
-
-```
-<App>
- ├── <Navbar />
- ├── <StrategyInputPanel>
- │    ├── <StrategyTextarea />
- │    ├── <AssetSelector />
- │    ├── <DateRangePicker />
- │    ├── <CapitalConfig />
- │    └── <RunButton />
- ├── <AgentPipeline>
- │    └── <AgentStatusRow /> × 5
- ├── <TearsheetLayout>
- │    ├── <EquityCurve />          (Recharts LineChart)
- │    ├── <MetricsGrid>
- │    │    └── <KPICard /> × 5
- │    ├── <ComparisonTable />
- │    └── <IrisSaysPanel>
- │         ├── <StreamedNarrative />
- │         └── <AutomateButtons />
- └── <AutomateModal />
-```
-
----
-
-## Responsive Behaviour
+## Responsive Layout
 
 | Breakpoint | Layout |
 |---|---|
@@ -191,12 +156,12 @@
 
 ---
 
-## Key Interaction States
+## Interaction States
 
 | State | Behaviour |
 |---|---|
 | Idle | Input panel prominent, no tearsheet visible |
-| Running | Agent pipeline animates, tearsheet skeleton loads |
-| Complete | Full tearsheet renders with staggered fade-in |
-| Error | Inline error in affected agent row, retry button |
-| Automating | Progress bar in AutomateModal, success flag from agent |
+| Running | Pipeline animates, tearsheet skeleton loads |
+| Complete | Tearsheet renders with staggered fade-in |
+| Error | Inline error in affected agent row + retry button |
+| Automating | Progress bar in AutomateModal, success flag from broker |
