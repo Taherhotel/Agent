@@ -5,6 +5,8 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: DB_URL
+        value: sqlite:///./iris.db
       - key: PORT
         value: 8000
       - key: CORS_ORIGINS
