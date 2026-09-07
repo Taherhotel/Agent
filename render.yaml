@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: iris-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    disk:
+      name: sqlite-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DB_URL
+        value: sqlite:////data/iris.db
+      - key: PORT
+        value: 8000
+      - key: CORS_ORIGINS
+        value: '["*"]' 
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ANGELONE_API_KEY
+        sync: false
+      - key: ANGELONE_CLIENT_ID
+        sync: false
+      - key: ANGELONE_PASSWORD
+        sync: false
+      - key: ANGELONE_TOTP_SECRET
+        sync: false
