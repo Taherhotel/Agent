@@ -72,8 +72,10 @@ async def chat(req: ChatRequest):
 
     system = _build_system_prompt(req.strategy_context)
 
+    model_name = os.getenv("GROQ_MODEL", "mixtral-8x7b-32768")
+    
     payload = {
-        "model": "llama3-8b-8192",
+        "model": model_name,
         "messages": [
             {"role": "system", "content": system},
             *[{"role": m.role, "content": m.content} for m in req.messages[-10:]],
