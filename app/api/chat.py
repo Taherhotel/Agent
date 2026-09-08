@@ -73,7 +73,7 @@ async def chat(req: ChatRequest):
     system = _build_system_prompt(req.strategy_context)
 
     payload = {
-        "model": "llama-3.1-8b-instant",
+        "model": "llama3-8b-8192",
         "messages": [
             {"role": "system", "content": system},
             *[{"role": m.role, "content": m.content} for m in req.messages[-10:]],
@@ -97,6 +97,9 @@ async def chat(req: ChatRequest):
             text = data["choices"][0]["message"]["content"].strip()
             return ChatResponse(message=text)
 
+    except httpx.HTTPStatusError as e:
+        log.warning(f"[Chat] Groq HTTP error {e.response.status_code}: {e.response.text}")
+        return ChatResponse(message=_static_fallback(req.messages, req.strategy_context))
     except Exception as e:
         log.warning(f"[Chat] Groq call failed: {e}")
         return ChatResponse(message=_static_fallback(req.messages, req.strategy_context))
