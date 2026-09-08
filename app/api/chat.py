@@ -73,7 +73,7 @@ async def chat(req: ChatRequest):
     system = _build_system_prompt(req.strategy_context)
 
     payload = {
-        "model": "llama-3.3-70b-versatile",
+        "model": "llama-3.1-8b-instant",
         "messages": [
             {"role": "system", "content": system},
             *[{"role": m.role, "content": m.content} for m in req.messages[-10:]],
